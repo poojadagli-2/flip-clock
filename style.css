@@ -1,0 +1,466 @@
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --bg:             #0d0d0d;
+  --card-top-bg:    #222222;
+  --card-bot-bg:    #1a1a1a;
+  --digit-color:    #f2efe8;
+  --divider:        #0d0d0d;
+  --sep-color:      #d0ccc0;
+  --accent:         #e8c840;
+  --accent-dim:     rgba(232,200,64,0.25);
+  --ctrl-bg:        #252525;
+  --ctrl-border:    #383838;
+  --ctrl-text:      #b0b0a8;
+  --danger:         #e84040;
+
+  /* card geometry: scale by the smaller of vw/vh so digits always fit */
+  --ch:   clamp(72px,  min(18.5vw, calc(100vh - 170px)), 210px);
+  --cw:   calc(var(--ch) * 0.715);
+  --fs:   calc(var(--ch) * 0.87);
+  --gap:  calc(var(--ch) * 0.048);
+  --ggap: calc(var(--ch) * 0.105);
+  --rad:  calc(var(--ch) * 0.042);
+}
+
+/* ── Base ──────────────────────────────────────────────────── */
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--digit-color);
+  font-family: 'Bebas Neue', 'Arial Narrow', Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* ── App shell ─────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: clamp(6px, 1.5vh, 16px) clamp(8px, 2vw, 24px);
+  gap: clamp(4px, 1vh, 12px);
+}
+
+/* ── Mode nav ──────────────────────────────────────────────── */
+#mode-nav {
+  display: flex;
+  gap: 3px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.mode-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-family: inherit;
+  font-size: clamp(11px, 1.8vw, 16px);
+  letter-spacing: 0.12em;
+  padding: 5px clamp(10px, 2.5vw, 22px);
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.18s, color 0.18s;
+}
+.mode-btn:hover { color: rgba(255,255,255,0.6); }
+.mode-btn.active {
+  background: rgba(255,255,255,0.09);
+  color: var(--accent);
+}
+
+/* ── Display area ──────────────────────────────────────────── */
+#display-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vh, 18px);
+  min-height: 0;
+}
+
+#session-label {
+  font-size: clamp(12px, 2.2vw, 20px);
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  min-height: 1.4em;
+  text-align: center;
+}
+
+/* ── Flip display row ──────────────────────────────────────── */
+#flip-display {
+  display: flex;
+  align-items: center;
+  gap: var(--ggap);
+}
+
+.digit-group {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+/* ── Separator (colon dots) ────────────────────────────────── */
+.sep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5px, 1.4vh, 16px);
+  height: var(--ch);
+  padding: 0 clamp(2px, 0.4vw, 6px);
+  flex-shrink: 0;
+}
+.sep-dot {
+  width:  clamp(5px, 1.1vw, 12px);
+  height: clamp(5px, 1.1vw, 12px);
+  background: var(--sep-color);
+  border-radius: 50%;
+  transition: opacity 0.12s;
+  flex-shrink: 0;
+}
+.sep.off .sep-dot { opacity: 0.18; }
+
+/* ── Single flip digit ─────────────────────────────────────── */
+.flip-digit {
+  position: relative;
+  width:  var(--cw);
+  height: var(--ch);
+  flex-shrink: 0;
+  perspective: 900px;
+}
+
+/* Top half – static bg (shows NEXT digit top) */
+.fd-top {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 50%;
+  background: var(--card-top-bg);
+  border-radius: var(--rad) var(--rad) 0 0;
+  overflow: hidden;
+  box-shadow: 0 -1px 0 rgba(255,255,255,0.04) inset;
+}
+
+/* Bottom half – static bg (shows NEXT digit bottom) */
+.fd-bot {
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 50%;
+  background: var(--card-bot-bg);
+  border-radius: 0 0 var(--rad) var(--rad);
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.4) inset;
+}
+
+/* Digit label helper – fills the full card height from within a half */
+.fd-top .lbl {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 200%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs);
+  line-height: 1;
+  color: var(--digit-color);
+  pointer-events: none;
+}
+.fd-bot .lbl {
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 200%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs);
+  line-height: 1;
+  color: var(--digit-color);
+  pointer-events: none;
+}
+
+/* Hairline divider */
+.fd-div {
+  position: absolute;
+  top: 50%; left: 0;
+  transform: translateY(-50%);
+  width: 100%; height: 2px;
+  background: var(--divider);
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Animated flap – covers fd-top, folds down on flip */
+.fd-flap {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 50%;
+  background: var(--card-top-bg);
+  border-radius: var(--rad) var(--rad) 0 0;
+  overflow: hidden;
+  transform-origin: center bottom;
+  z-index: 10;
+  will-change: transform;
+  box-shadow: 0 -1px 0 rgba(255,255,255,0.04) inset;
+}
+.fd-flap .lbl {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 200%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs);
+  line-height: 1;
+  color: var(--digit-color);
+  pointer-events: none;
+}
+
+/* Fold-down shadow that appears during animation */
+.fd-flap::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 40%;
+  background: linear-gradient(to bottom, transparent, rgba(0,0,0,0));
+  pointer-events: none;
+  transition: none;
+}
+
+@keyframes flapFold {
+  0%   { transform: rotateX(0deg); }
+  100% { transform: rotateX(-90deg); }
+}
+
+.fd-flap.folding {
+  animation: flapFold 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 2px 4px rgba(0,0,0,0.5);
+}
+.fd-flap.folding::after {
+  background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.35));
+}
+
+/* Card shadow */
+.fd-top, .fd-bot {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* ── Pomodoro cycle dots ────────────────────────────────────── */
+#pomodoro-progress { text-align: center; }
+#cycle-dots {
+  display: flex;
+  gap: clamp(6px, 1.2vw, 12px);
+  justify-content: center;
+}
+.cycle-dot {
+  width:  clamp(8px, 1.6vw, 14px);
+  height: clamp(8px, 1.6vw, 14px);
+  border-radius: 50%;
+  border: 2px solid var(--accent-dim);
+  background: transparent;
+  transition: background 0.3s, border-color 0.3s;
+}
+.cycle-dot.done  { background: var(--accent); border-color: var(--accent); }
+.cycle-dot.current { border-color: var(--accent); }
+
+/* ── Mode controls ─────────────────────────────────────────── */
+.mode-controls {
+  display: flex;
+  gap: clamp(8px, 1.8vw, 16px);
+  flex-shrink: 0;
+}
+
+.ctrl-btn {
+  font-family: inherit;
+  font-size: clamp(12px, 2vw, 17px);
+  letter-spacing: 0.14em;
+  border: 1px solid var(--ctrl-border);
+  border-radius: 6px;
+  padding: clamp(6px,1.2vh,10px) clamp(16px,3vw,32px);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  background: var(--ctrl-bg);
+  color: var(--ctrl-text);
+}
+.ctrl-btn:hover { background: #303030; color: #e0e0d8; }
+.ctrl-btn.primary {
+  background: rgba(232,200,64,0.12);
+  border-color: rgba(232,200,64,0.4);
+  color: var(--accent);
+}
+.ctrl-btn.primary:hover {
+  background: rgba(232,200,64,0.22);
+  border-color: var(--accent);
+}
+.ctrl-btn.danger {
+  color: var(--danger);
+  border-color: rgba(232,64,64,0.35);
+}
+.ctrl-btn.full-width { width: 100%; }
+
+/* ── Settings bar ──────────────────────────────────────────── */
+#settings-bar {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 1.2vw, 14px);
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.35);
+  width:  clamp(32px, 4.5vw, 42px);
+  height: clamp(32px, 4.5vw, 42px);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: clamp(10px, 1.6vw, 14px);
+  letter-spacing: 0.06em;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+.icon-btn.active {
+  color: var(--accent);
+  border-color: rgba(232,200,64,0.35);
+  background: rgba(232,200,64,0.06);
+}
+.icon-btn svg { display: block; width: 18px; height: 18px; }
+
+/* ── Settings panel ────────────────────────────────────────── */
+#settings-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+#settings-panel.hidden { display: none; }
+
+#settings-content {
+  background: #181818;
+  border: 1px solid #303030;
+  border-radius: 16px 16px 0 0;
+  padding: clamp(16px, 3vw, 28px);
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.settings-header h2 {
+  font-size: clamp(14px, 2.5vw, 20px);
+  letter-spacing: 0.18em;
+  color: var(--digit-color);
+}
+
+.settings-section h3 {
+  font-size: clamp(10px, 1.8vw, 14px);
+  letter-spacing: 0.16em;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 12px;
+}
+
+/* Time picker */
+.time-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.time-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.time-field input {
+  background: #252525;
+  border: 1px solid #383838;
+  border-radius: 6px;
+  color: var(--digit-color);
+  font-family: inherit;
+  font-size: clamp(22px, 4vw, 36px);
+  text-align: center;
+  width: clamp(60px, 10vw, 88px);
+  padding: 6px 4px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.time-field input:focus { border-color: var(--accent); }
+.time-field input::-webkit-outer-spin-button,
+.time-field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.time-field label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.35);
+}
+.time-sep {
+  font-size: clamp(24px, 4vw, 36px);
+  color: rgba(255,255,255,0.3);
+  margin-top: -18px;
+}
+
+/* Pomodoro grid */
+.pomo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.pomo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pomo-field input {
+  background: #252525;
+  border: 1px solid #383838;
+  border-radius: 6px;
+  color: var(--digit-color);
+  font-family: inherit;
+  font-size: clamp(18px, 3vw, 28px);
+  text-align: center;
+  padding: 6px 4px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.pomo-field input:focus { border-color: var(--accent); }
+.pomo-field input::-webkit-outer-spin-button,
+.pomo-field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.pomo-field label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.35);
+}
+
+/* ── Utility ───────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+/* ── Responsive: very short landscape (phones ≤ 420px tall) ── */
+@media (max-height: 420px) {
+  #app { padding: 3px 8px; gap: 2px; }
+  .mode-btn { padding: 3px 10px; }
+  .ctrl-btn { padding: 4px 14px; }
+  .icon-btn { width: 28px; height: 28px; }
+  #session-label { min-height: 0; font-size: 11px; }
+}
+
+/* ── Fullscreen tweaks ──────────────────────────────────────── */
+:fullscreen #app,
+:-webkit-full-screen #app,
+:-moz-full-screen #app {
+  padding: clamp(10px, 2vh, 24px) clamp(12px, 3vw, 32px);
+}
